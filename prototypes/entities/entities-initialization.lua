@@ -1,0 +1,1 @@
+require(ob_entities_prototypes_path .. "buildings/portal")
