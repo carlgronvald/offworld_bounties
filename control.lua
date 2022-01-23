@@ -14,6 +14,16 @@ local portal_part = {
     force = "player",
 }
 
+local solar_panel = {
+    name = "solar-panel",
+    angle_deviation = 0.2,
+    max_distance = 25,
+    min_separation = 10,
+    fire_count = 3,
+    explosion_count = 1,
+    force = "player",
+}
+
 event.on_init(function()
 
     log("yo!")
@@ -27,7 +37,9 @@ event.on_init(function()
     then
       local ship_parts = remote.call("freeplay", "get_ship_parts")
       ship_parts = {
-          portal_part
+          portal_part,
+          portal_part,
+          solar_panel
       }
       remote.call("freeplay", "set_ship_parts", ship_parts)
     end
