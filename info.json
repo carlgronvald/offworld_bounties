@@ -1,0 +1,9 @@
+{
+    "name" : "offworld-bounties",
+    "version" : "0.1.0",
+    "title" : "Offworld Bounties",
+    "author" : "CarolusTheXII",
+    "factorio_version" : "1.1",
+    "dependencies" : ["base >= 1.1"],
+    "description" : "This mod creates a new game mode about extracting value from offworld asteroid belts"
+}
