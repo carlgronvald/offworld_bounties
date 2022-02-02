@@ -1,8 +1,13 @@
---remote = remote
+-- This is just done so there's no useless warnings in the code.
+log = log
+remote = remote
+game = game
+
 
 local event = require("__flib__.event")
 local on_tick_n = require("__flib__.on-tick-n")
-local freeplay = require("scripts.freeplay")
+local freeplay = require("control.freeplay")
+local generate = require("control.generate")
 
 local portal_part = {
     name = "ob-portal",
@@ -43,6 +48,11 @@ event.on_init(function()
       }
       remote.call("freeplay", "set_ship_parts", ship_parts)
     end
+end)
+
+event.on_picked_up_item(function()
+  generate.roguelike()
+
 end)
 
 log("yowzers")
