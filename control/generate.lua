@@ -2,6 +2,22 @@ require("value_noise")
 
 local generate = {}
 
+function generate.dump(o, d)
+    if not d then d=0 end
+
+    if type(o) == 'table' then
+       local s = string.rep('  ', d) .. '{ \n'
+       for k,v in pairs(o) do
+          if type(k) ~= 'number' then k = '"'..k..'"' end
+          s = s .. string.rep('  ', d) .. '['..k..'] = ' .. generate.dump(v, d+1) .. ',\n'
+       end
+       return s .. string.rep('  ', d) .. '}'
+    else
+       return tostring(o)
+    end
+ end
+ 
+
 
 function generate.sum_array(array) 
     local total = 0.0
@@ -17,10 +33,10 @@ end
 -- mask = anything where mask is zero will be zero as well.
 function generate.blob(amount, rng, spread, mask)
 
-    local vn = Value2D(5, rng, 200, 200)
+    local vn = Value2D(5, rng, 500, 500)
 
-    local width = 200
-    local height = 200
+    local width = 500
+    local height = 500
     if not mask then
         mask = {}
         for i = 1,width do
@@ -197,13 +213,72 @@ function generate.land_blob(grid, surface, position)
     surface.set_tiles(tiles)
 end
 
+function generate.map_generation_settings()
+    local width = 500
+    local height = 500
+    local water_area_factor = 0.5 -- Amount of area expected lost to water
+    local area = width*height/1000000 * water_area_factor
+    local water_size = width/500
+
+    local magic_number = 3/11
+
+    local expected_lode_patches = 3
+    local lode_frequency = expected_lode_patches/area*magic_number
+
+    return {
+        width = width,
+        height = height,
+        property_expression_names = {
+            elevation = "roguelike-noise",
+            output_scale = "200.0",
+            input_scale = "1.0",
+            octaves = "6",
+            octave_output_scale_modifier = "2.0",
+            octave_input_scale_modifier = "0.46",
+            water_size = tostring(water_size),
+            water_bias = "10000",
+            cliffiness = "0",
+            ["enemy-base-frequency"] = "0",
+        },
+        starting_area = 0,
+        autoplace_controls = {
+            ["iron-ore"] = {
+                frequency = 4,
+                size = 0.25,
+                richness = 0.5
+            },
+            ["copper-ore"] = {
+                frequency = 4,
+                size = 0.5,
+                richness = 0.5,
+            },
+            ["stone"] = {
+                frequency = 2,
+                size = 0.5,
+                richness = 0.5
+            },
+            ["coal"] = {
+                frequency = 2,
+                size = 0.5,
+                richness = 0.5,
+            },
+            ["ob-lode-ore"] = {
+                frequency = lode_frequency,
+                size = 0.25,
+                richness = 1,
+            }
+        },
+
+    }
+end
+
 function generate.roguelike()
-    log("yo!")
+    --[[log("yo!")
 
     local first_player = game.get_player(1)
     local player_character = first_player.character
     local position = {
-        x = math.floor(player_character.position.x) + 0.5,
+        x = math.floor(player_character.positison.x) + 0.5,
         y = math.floor(player_character.position.y) + 0.5
     }
 
@@ -222,7 +297,113 @@ function generate.roguelike()
         end
     end
     local copper_blob = generate.blob(50000, rng, 0.05, mask)
-    generate.fill_blob_with_resource(copper_blob, "copper-ore", player_character.surface, position)
+    generate.fill_blob_with_resource(copper_blob, "copper-ore", player_character.surface, position)]]
+
+    if not generate.rng then
+        generate.rng = game.create_random_generator()
+    end
+    local level_surface = game.create_surface("roguelike_level", generate.map_generation_settings())
+    level_surface.request_to_generate_chunks({x=0, y=0}, 250);
+    local first_player = game.get_player(1)
+    --log(generate.dump(first_player.surface.map_gen_settings))
+
+    first_player.teleport({x=0, y=0}, level_surface)
+
+end
+
+function generate.distribute_amounts(total, splits, split_min_part, rng) 
+
+    local distributable = total * (1 - split_min_part * splits)
+    
+    local patch_weights = {}
+    local patch_weight_total = 0
+
+    for i=1,splits do
+        patch_weights[#patch_weights+1] = rng()
+        patch_weight_total = patch_weight_total + patch_weights[i]
+    end
+
+    local patch_sizes = {}
+    for i=1,splits do
+        patch_sizes[#patch_sizes+1] = math.floor((patch_weights[i] / patch_weight_total) * distributable) + split_min_part * total
+    end
+
+    return patch_sizes
+end
+
+function generate.count_tiles()
+    if not generate.rng then
+        generate.rng = game.create_random_generator()
+    end
+    local level_surface = game.get_player(1).surface
+    local available_tiles = level_surface.get_connected_tiles(
+        {x = 0, y = 0}, {"grass-1", "grass-2", "grass-3", "grass-4"}
+    )
+
+    local min_x = 0
+    local min_y = 0
+    local max_x = 0
+    local max_y = 0
+
+    for _,tile in ipairs(available_tiles) do
+        if tile.x < min_x then min_x = tile.x end
+        if tile.x > max_x then max_x = tile.x end
+        if tile.y < min_y then min_y = tile.y end
+        if tile.y > max_y then max_y = tile.y end
+    end
+
+    log("min, max: (" .. tostring(min_x) .. "," .. tostring(min_y) .. ") - (" .. tostring(max_x) .. "," .. tostring(max_y) .. ")")
+    local mask = {}
+    for i=1,max_x-min_x do
+        for j=1,max_y-min_y do
+            mask[#mask+1] = -1
+        end
+    end
+
+    for _,tile in ipairs(available_tiles) do
+        mask[tile.x-min_x + (tile.y-min_y)*(max_x-min_x)] = 1
+    end
+
+
+    local totals = {
+        ["iron-ore"] = 100000,
+        ["coal"] = 10000,
+        ["copper-ore"] = 30000,
+        ["stone"] = 25000,
+        ["ob-lode-ore"] = 1000,
+    }
+
+    local resource_counts = level_surface.get_resource_counts()
+
+    local multipliers = {}
+    for k,v in pairs(totals) do
+        if resource_counts[k] then
+            log("Found " .. tostring(resource_counts[k]) .. " of " .. tostring(k))
+            multipliers[k] = v / resource_counts[k]
+        else
+            resource_counts[k] = 1
+        end
+    end
+
+    for k,mult in pairs(multipliers) do
+        local resource_entities = level_surface.find_entities_filtered {
+            area = {
+                left_top = {-250, -250},
+                right_bottom = {250,250}
+            },
+            name = k
+        }
+        for _,t in ipairs(resource_entities) do
+            t.amount = math.max(t.amount*mult, 1)
+        end
+    end
+
+    --local iron_patches = 3
+    --local iron_patch_min = 0.25
+
+    --local patch_distribution = generate.distribute_amounts(total_iron, iron_patches, iron_patch_min, generate.rng)
+
+    --log("Patches: " .. tostring(patch_distribution[1]) .. ", " .. tostring(patch_distribution[2]) .. ", " .. tostring(patch_distribution[3]) )
 end
 
 return generate

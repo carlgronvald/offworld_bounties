@@ -1,6 +1,6 @@
-for _,resource in pairs(data.raw.resource) do
-    resource.autoplace = nil
-end
+--for _,resource in pairs(data.raw.resource) do
+--    resource.autoplace = nil
+--end
 
 --data.raw.resource['iron-ore'].autoplace = nil
 --data.raw.resource['copper-ore'].autoplace = nil

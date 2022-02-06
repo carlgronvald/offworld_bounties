@@ -54,5 +54,9 @@ event.on_picked_up_item(function()
   generate.roguelike()
 
 end)
+event.on_player_mined_entity(function()
+  generate.count_tiles()
+
+end)
 
 log("yowzers")

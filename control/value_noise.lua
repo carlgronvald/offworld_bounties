@@ -34,7 +34,6 @@ function Value2D(octaves, rng, width, height)
     end
 
     local function smooth_noise(x, y, octave)
-      log(":" .. tostring((x+2)*(height+4)*octaves +  (y+2)*octaves + octave) .. " / " .. tostring(#noise_array) .. "(" .. tostring(x) .. "," .. tostring(y) .. "," .. tostring(octave) .. ")")
       local corners = noise_array[x*(height+4)*octaves +  y*octaves + octave]+noise_array[(x+2)*(height+4)*octaves +  y*octaves + octave]
           +noise_array[x*(height+4)*octaves +  (y+2)*octaves + octave] + noise_array[(x+2)*(height+4)*octaves +  (y+2)*octaves + octave]
       local sides = noise_array[x*(height+4)*octaves +  (y+1)*octaves + octave]+noise_array[(x+2)*(height+4)*octaves +  (y+1)*octaves + octave]
