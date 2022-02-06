@@ -21,6 +21,7 @@ data:extend({
       collision_box = { { -1.75, -1.75 }, { 1.75, 1.75 } },
       selection_box = { { -2, -2 }, { 2, 2 } },
       damaged_trigger_effect = hit_effects.entity(),
+      map_color = {r = 20, g=240, b=20},
 
       animation = {
         layers = {

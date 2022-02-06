@@ -239,17 +239,21 @@ function generate.map_generation_settings()
             water_bias = "10000",
             cliffiness = "0",
             ["enemy-base-frequency"] = "0",
+            ["control-setting:moisture:bias"] = "0.7",
+            ["entity:rock-huge:probability"] = "0",
+            ["entity:rock-big:probability"] = "0",
+            ["entity:sand-rock-big:probability"] = "0",
         },
         starting_area = 0,
         autoplace_controls = {
             ["iron-ore"] = {
                 frequency = 4,
-                size = 0.25,
+                size = 0.1,
                 richness = 0.5
             },
             ["copper-ore"] = {
                 frequency = 4,
-                size = 0.5,
+                size = 0.25,
                 richness = 0.5,
             },
             ["stone"] = {
@@ -272,7 +276,13 @@ function generate.map_generation_settings()
     }
 end
 
+generate.started = false
+
 function generate.roguelike()
+    if generate.started then
+        return
+    end
+    generate.started = true
     --[[log("yo!")
 
     local first_player = game.get_player(1)
@@ -305,9 +315,26 @@ function generate.roguelike()
     local level_surface = game.create_surface("roguelike_level", generate.map_generation_settings())
     level_surface.request_to_generate_chunks({x=0, y=0}, 250);
     local first_player = game.get_player(1)
+
+    level_surface.create_entity {
+        name =  "ob-dome",
+        position = {0,0},
+        force = first_player.force
+    }
+    level_surface.create_entity {
+        name =  "solar-panel",
+        position = {-3,0},
+        force = first_player.force
+    }
+    first_player.get_main_inventory().insert(
+        "small-electric-pole"
+    )
+    first_player.get_main_inventory().insert(
+        "ob-mana-pack"
+    )
     --log(generate.dump(first_player.surface.map_gen_settings))
 
-    first_player.teleport({x=0, y=0}, level_surface)
+    first_player.teleport({x=3, y=0}, level_surface)
 
 end
 
@@ -331,13 +358,43 @@ function generate.distribute_amounts(total, splits, split_min_part, rng)
     return patch_sizes
 end
 
+-- required: available_tiles, entity, surface, force
+-- optional: minimum_sqr_distance
+function generate.create_entity(
+    arg
+)
+
+
+    local portal_tile = {x=0, y=0}
+    portal_tile = arg.available_tiles[generate.rng(#arg.available_tiles)]
+    if arg.minimum_sqr_distance then
+        while portal_tile.x*portal_tile.x + portal_tile.y * portal_tile.y < arg.minimum_sqr_distance do
+            portal_tile = arg.available_tiles[generate.rng(#arg.available_tiles)]
+        end
+    end
+    arg.surface.create_entity {
+        name =  arg.entity,
+        position = portal_tile,
+        force = arg.force
+    }
+end
+
+generate.did_setup = false
+
 function generate.count_tiles()
+    if generate.did_setup then
+        return
+    end
+    generate.did_setup = true
     if not generate.rng then
         generate.rng = game.create_random_generator()
     end
+
     local level_surface = game.get_player(1).surface
+    local ally_force = game.get_player(1).force
     local available_tiles = level_surface.get_connected_tiles(
-        {x = 0, y = 0}, {"grass-1", "grass-2", "grass-3", "grass-4"}
+        {x = 0, y = 0}, {"grass-1", "grass-2", "grass-3", "grass-4", "red-desert-3", "red-desert-2", "red-desert-1", "red-desert-0",
+            "sand-3", "sand-2", "sand-1", "dirt-7", "dirt-6", "dirt-5", "dirt-4", "dirt-3", "dirt-2", "dirt-1"}
     )
 
     local min_x = 0
@@ -397,6 +454,46 @@ function generate.count_tiles()
             t.amount = math.max(t.amount*mult, 1)
         end
     end
+
+    local max_tile_distance_sqr = 0
+    for _, tile in pairs(available_tiles) do
+        local tile_distance = tile.x*tile.x + tile.y*tile.y
+        if tile_distance > max_tile_distance_sqr then
+            max_tile_distance_sqr = tile_distance
+        end
+    end
+
+    generate.create_entity{
+        available_tiles = available_tiles,
+        entity = 'ob-portal',
+        surface = level_surface,
+        force = ally_force,
+        minimum_sqr_distance = 0.5,
+    }
+
+    generate.create_entity{
+        available_tiles = available_tiles,
+        entity = 'ob-portal',
+        surface = level_surface,
+        force = ally_force,
+        minimum_sqr_distance = 0.5,
+    }
+
+    local start_entities = {
+        "rock-huge", "rock-huge", "rock-big", "rock-big", "rock-big", "rock-big", "rock-big", "rock-big"
+    }
+
+    for _, entity in pairs(start_entities) do
+        generate.create_entity{
+            available_tiles = available_tiles,
+            entity = entity,
+            surface = level_surface,
+            force = ally_force,
+            minimum_sqr_distance = 0.5,
+        }
+    end
+
+    --generate.create_portal(available_tiles, max_tile_distance_sqr, level_surface, ally_force)
 
     --local iron_patches = 3
     --local iron_patch_min = 0.25
